@@ -25,7 +25,9 @@
   - [Using VPNs to access private subnets](#using-vpns-to-access-private-subnets)
   - [Scaling with Elastic Load Balancer (ELB)](#scaling-with-elastic-load-balancer-elb)
   - [Learn how to create an Application Load Balancer (ALB)](#learn-how-to-create-an-application-load-balancer-alb)
+  - [Point a domain to your EC2s with Route53](#point-a-domain-to-your-ec2s-with-route53)
 - [IaaS Storage](#iaas-storage)
+  - [Hard drives with Elastic Block Store (EBS)](#hard-drives-with-elastic-block-store-ebs)
 - [Database as a Service (DBaaS)](#database-as-a-service-dbaas)
 - [Platform as a Service (PaaS)](#platform-as-a-service-paas)
 - [Software as a Service (SaaS)](#software-as-a-service-saas)
@@ -127,6 +129,10 @@ If you can tell AWS upfront want your requirements will be, they'll discount usa
 
 # IaaS Networking
 ## Using security groups as firewalls
+All traffic is blocked by default and a security group rule allows external traffic.
+- A security group with no rules by default means all traffic is being blocked.
+- The rules allow specific traffic to pass through.
+
 Instances can use multiple SGs, and their rules become stacked together.
 
 - Launch wizard is the default name given to a SG when the instance is created with the wizard.
@@ -166,6 +172,8 @@ Best practice:
 Local zones can be enabled in a new subnet to get closer to end users.
 
 ## Internet and NAT gateways
+A NAT gateway will not allow public originating internet traffic to pass to a server, but an Internet gateway will allow it.
+
 Allows servers in public subnet to reach open internet, and allows outside traffic to pass into server, which is filtered by SGs on that instance.
 On left-hand side, select 'Internet gateways'.
 - One should of been created for us when we created a new instance.
@@ -178,6 +186,8 @@ In our home router example, the Elastic IP is what the NAT gateway is going to u
 - Any servers using the NAT gateway will appear to the outside world as only having a single IP address.
 
 ## Static addresses with Elastic IPs
+You can lose the public IP address associated with your EC2 instance if you stop and start the instance.
+
 Managed from the VPC console.
 Request an Elastic IP to bind to a NAT gateway (from here or the EC2 console), then bind them to EC2 servers.
 - This will replace the public IP address that AWS has randomly assigned to each running public instance
@@ -248,43 +258,77 @@ There are three types of ELBs:
 3. Application LBs are great for web traffic, bc they will consider traffic and route it based on set of rules.
 - This is what we will use, as we're using web servers.
 
+An ALB is used for HTTP traffic, and an NLB is used for traffic that requires speed, like low-latency streaming services using TCP and UDP.
 ## Learn how to create an Application Load Balancer (ALB)
 
-Note:
+Before we attempt to make the ALB, note:
 1. Which two availability zones the instances are running in.
 2. Which security group are instances using.
 
 - In left-hand submenu, find 'Load Balancers', select 'Create Load Balancer', and under ALB, press 'Create'.
-- Give a name (`testalb`), under 'Network Mapping: VPC' select the default VPC, under 'Network Mapping: Mappings' select two AZs the EC2 instances are in.
+- Give a name (`testalb`), under 'Network Mapping: VPC' -> select the default VPC, under 'Network Mapping: Mappings' -> select two AZs the EC2 instances are in.
   - If you had public and private subnets, you would select the public subnet under the AZ.
-- LBs use SGs just like EC2s do. 
-  - under SGs, create new SG. 
+- LBs use SGs just like EC2s do, we'll create a new one:
+  - Under SGs, create new SG. 
   - Give name: `alb-sg`. Give desc: `http for webservers`. 
   - Add inbound rule, HTTP: Source: Anywhere IPv4.
   - Add outbound rule, HTTP: Specify target server, set Dest: Custom, and search for SGs, select SG bound to each running EC2 instance.
     - Don't spec IP ranges, but SGs. Any instance bound with SG, will be able to receive traffic from the ALB.
   - Remove 'all traffic' option if there.
-  - Create SG.
-- Refresh ALB with button, and select the new SG created in steps above.
+  - Create SG, and close out of the new SG tab.
+
+- Refresh ALB with button next to drop down, and select the new SG created in steps above, remove the default.
 - LBs route traffic to target groups, which include the target servers.
   - Forward to: *Select target group* or *Create target group* to open settings in new tab.
-- Create target group:
-  - Select instances for target type, give name `webservers`, port will be forwarding 80, HTTP1 traffic.
+- Under 'Listeners and routing' section, 'Create target group':
+  - Select instances for target type, give Target group name: `webservers`, port will be forwarding 80, HTTP1 traffic.
   - Select default VPC
-  - Health checks will be run to determine if the server is healthy before sending traffic to it.
+  - Health checks will be run to determine if the server is healthy before sending traffic to it
+    - It will check a defined port on the instances in the target group for a defined status code.
   - Click Next, the target servers will now register to target group we just created, by checking the boxes and click 'Include as pending' button.
   - Create target group.
-- Refresh ALB with button, and select the new TG created in steps above.
+- Close out of the new tab, and hit refresh ALB with button, and select the new TG created in steps above.
 - Click Create LB and view.
 
-In details panel of new LB, click on Listeners tab, under Rules, click on `webservers` TG, click on `webservers` TG again, notice two servers under targets tab.
+Confirm that the servers are healthy:
+Select the new LB, in details panel click on 'Listeners and rules' tab.
+- Under 'Default action', click on `webservers` TG, notice two servers under 'Targets' tab.
 - Health status will eventually turn healthy.
 
 Back in 'Load Balancers', under description, copy 'DNS name' assigned to load balancer, and paste into browser.
 - Now LB is shuffling traffic on port 80 to both healthy servers.
 
+## Point a domain to your EC2s with Route53
+
+- Search and select Route 53 in services search bar.
+  - If you don't have a domain name, one can be purchased from Route53
+To buy one from AWS:
+- In the left-hand menu, under 'Domains', select 'Registered domains'.
+  - Click Register domain button, and follow the prompts in the wizard
+If bought from a different registrar:
+- You only need to point your domain's DNS servers to the Route53 servers.
+- Look at [registrar documentation](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/migrate-dns-domain-in-use.html) to register DNS servers for the domain.
+- [Index of supported top-level domains](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/registrar-tld-list.html)
+If you have a domain:
+- In the left-hand menu, under 'Domains', select 'Hosted zone'.
+  - Type in domain name, and make sure 'Public hosted zone' is selected, and click create.
+  - Get Name servers information from the details page of the HG.
+- Head to your domain registrar, find DNS settings, and add Nameservers.
+  - This can take a while to complete
+- Back in Route53, under Records tab, you will see all DNS records for domain name.
+- Point the root of domain to the ALB:
+  - Leave the subdomain blank to create the route record.
+  - Select 'Alias', 'Route traffic to: Alias to Application and Classic Load Balancer', 'Region: your region', 'LB: your LB', click 'Create records'.
+- Alias to `www` subdomain:
+  - Type `www` in 'Record name'.
+  - Select 'Alias', 'Route traffic to: Alias to another record in this hosted zone', 'Record: the root record made above', click 'Create records'.
 
 # IaaS Storage
+
+## Hard drives with Elastic Block Store (EBS)
+
+
+
 # Database as a Service (DBaaS)
 # Platform as a Service (PaaS)
 # Software as a Service (SaaS)
