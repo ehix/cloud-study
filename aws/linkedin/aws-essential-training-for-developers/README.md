@@ -6,7 +6,7 @@
 - [AWS Essential Training for Developers](#aws-essential-training-for-developers)
 - [Contents](#contents)
 - [AWS Essential Setup](#aws-essential-setup)
-- [On-Presmise to AWS](#on-presmise-to-aws)
+- [On-Premise to AWS](#on-premise-to-aws)
 - [IaaS Compute](#iaas-compute)
   - [Create an EC2 instance](#create-an-ec2-instance)
   - [EC2 instance types](#ec2-instance-types)
@@ -17,6 +17,14 @@
   - [How to create backups with an AMI Snapshot](#how-to-create-backups-with-an-ami-snapshot)
   - [Saving money in EC2](#saving-money-in-ec2)
 - [IaaS Networking](#iaas-networking)
+  - [Using security groups as firewalls](#using-security-groups-as-firewalls)
+  - [Virtual Private Cloud (VPC)](#virtual-private-cloud-vpc)
+  - [Public and private subnets](#public-and-private-subnets)
+  - [Internet and NAT gateways](#internet-and-nat-gateways)
+  - [Static addresses with Elastic IPs](#static-addresses-with-elastic-ips)
+  - [Using VPNs to access private subnets](#using-vpns-to-access-private-subnets)
+  - [Scaling with Elastic Load Balancer (ELB)](#scaling-with-elastic-load-balancer-elb)
+  - [Learn how to create an Application Load Balancer (ALB)](#learn-how-to-create-an-application-load-balancer-alb)
 - [IaaS Storage](#iaas-storage)
 - [Database as a Service (DBaaS)](#database-as-a-service-dbaas)
 - [Platform as a Service (PaaS)](#platform-as-a-service-paas)
@@ -27,7 +35,7 @@
 # AWS Essential Setup
 - Set MFA on root account, via Security Credentials.
 - Create an IAM user, under a group with given permissions.
-# On-Presmise to AWS
+# On-Premise to AWS
 # IaaS Compute
 **EC2 (Elastic Compute Cloud)**
 ## Create an EC2 instance
@@ -118,6 +126,164 @@ If you can tell AWS upfront want your requirements will be, they'll discount usa
 - 'Compute Savings Plan' allows for changes to family also.
 
 # IaaS Networking
+## Using security groups as firewalls
+Instances can use multiple SGs, and their rules become stacked together.
+
+- Launch wizard is the default name given to a SG when the instance is created with the wizard.
+  - Once a security group is created, its name cannot be edited.
+- However, it can be copied and the copy can be modified.
+  - Under 'Network & Security', 'Security Groups', select SG and choose 'Copy to new security group' from 'Actions'.
+
+- To apply an SG to an instance, select the instance and find 'Security' -> 'Change security group', under 'Actions'.
+  - Search for your SG in he search bar, apply, and save.
+
+Not a good idea to publicly expose SSH port to open internet over `0.0.0.0/0:80`.
+## Virtual Private Cloud (VPC)
+Indicated on diagrams with a green box around the VCP.
+Every VCP will have a range of non-routable (private IPs) that you can pick from to use in the private network.
+When linking computers with a switch, a LAN will work with ranges of non-routeable IPs, which can be used by any local network, e.g. 192.168.1.1/255 address ranges used by most home routers.
+
+Search VPC in services search bar at the top of the page.
+On left-hand side, select 'Your VPCs'.
+There should be one VCP that was created as a default when it launched the first instance.
+- It shouldn't be deleted.
+- More VPCs can be created to separate projects or businesses.
+Select a VPC, under 'CIDRs' you can see that the VPC operates under the range of non-routable IPs of `172.31.0.0/16`.
+- 172.31.0.0 - 172.31.255.255 (65,534 usable IPs).
+
+## Public and private subnets
+A subnet is a group of sequential IPs within a network space.
+- A way to divide the network of available IP ranges, to write networking rules that apply to a group of addresses.
+
+On left-hand side, select 'Subnets'.
+- Some subnets will have been created within the default VPC, under each availability zone in the region.
+  - The subnets are grouped with IP ranges in different regions.
+
+Best practice:
+1. create a public subnet in an AZ, that includes all servers exposed to incoming internet traffic, e.g. web servers.
+2. create a private subnet with protections, such as, database or file servers.
+
+Local zones can be enabled in a new subnet to get closer to end users.
+
+## Internet and NAT gateways
+Allows servers in public subnet to reach open internet, and allows outside traffic to pass into server, which is filtered by SGs on that instance.
+On left-hand side, select 'Internet gateways'.
+- One should of been created for us when we created a new instance.
+
+On left-hand side, select 'NAT gateways', and `Create NAT gateway`.
+- If you had a private subnet, you could select it from the 'Subnet' drop-down.
+- And then, select an Elastic IP in the second drop-down.
+
+In our home router example, the Elastic IP is what the NAT gateway is going to use on its WAN port
+- Any servers using the NAT gateway will appear to the outside world as only having a single IP address.
+
+## Static addresses with Elastic IPs
+Managed from the VPC console.
+Request an Elastic IP to bind to a NAT gateway (from here or the EC2 console), then bind them to EC2 servers.
+- This will replace the public IP address that AWS has randomly assigned to each running public instance
+- Not it's a fixed IP that won't change when the instance is stopped/started.
+
+Head to EC2 console.
+On left-hand menu, under 'Network & Security', select 'Elastic IPs', and 'Allocate Elastic IP address'.
+- Click Allocate at the bottom to create the IP.
+
+**Elastic IPs are billable, unless it's bound to something, like a NAT gateway or EC2 instance.**
+Periodically review and release any Elastic IP that isn't in use (Actions -> Release).
+
+Scroll over in the Elastic IP addresses table, see 'Associated instance ID' or 'Association ID'.
+- i.e. it's not bound to anything yet.
+- Actions -> Associate Elastic IP Address -> search for EC2 instance -> search for only Private IP for instance, confirm.
+- In EC2 instances console, details/Public IP address will have updated to the Elastic IP. 
+
+## Using VPNs to access private subnets
+Several [examples](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-example-dev-test.html) in [documentation](https://docs.aws.amazon.com/vpc/latest/userguide/configure-subnets.html).
+
+First scenario, similar to what we have already, a VPC with a single public subnet.
+
+![Alt text](images/vpc_pub_subnet_single_az_and_gateway.png)
+
+If split up subnets into public and private, requires a NAT gateway in the public subnet to allow servers within private subnet to reach open internet.
+- This still protects the serves from incoming traffic.
+
+*Questions:*
+If the servers in the private subnet are protected from all outside internet traffic, how do you connect to them to administer them?
+What if you want to restrict admin access to the servers in the public subnet, e.g. closing off the ports for SSH for linux terminal access, or remote desktop protocol (RDP) for Windows servers?
+
+One way to securely connect to your instances is by using a **bastion host**.
+- An instance put in public subnet that is locked down and monitored.
+- Connect to this machine first, then from there make connections to other servers in the VPC.
+
+![Alt text](images/bastion.png)
+
+AWS has a [quick start script](https://aws.amazon.com/quickstart/) for this.
+- [Linux Bastion Hosts on AWS](https://aws.amazon.com/solutions/implementations/linux-bastion/)
+- Can be launched directly into account using an automation language for infrastructure called **CloudFormation**.
+
+Another method for connecting securely to Linux and Windows instances, is to use **AWS Sessions Manager**.
+- Available from the **System Manager** dashboard.
+- Select Session Manager from under Node Management.
+  - With Session Manager an agent runs on the server and after the IAM rules and permissions have been set up, you can connect to instances through the AWS console or command line tools.
+  - See *'Set up Session Manager'* link.
+
+Another common solution to secure the network is to use a VPN.
+- Using an **AWS Client VPN** you can use a VPN client on another machine to establish a secure connection with the VPC.
+- This works well for allowing coding and database management tools to work seamlessly.
+
+Another way to use a VPN within AWS, is a **Site-to-Site VPN**
+- Can bridge existing on-prem data center or office network with a VPC.
+- Can be used to securely move data to AWS as a part of a *cloud migration*.
+- Can be used in a hybrid model where some on-prem infrastructure continues to serve the application, but start using AWS services to support them.
+
+If you create multiple VPCs, and they need to be joined together along with the VPN connections to on-prem networks, see **AWS Transit Gateway**.
+- Helps manage bridging all these networks together.
+
+If you need a fast and stable connection between data center and AWS, consider AWS Direct Connect.
+- Provides a physical connection been both, used in large scale hybrid deployments.
+
+## Scaling with Elastic Load Balancer (ELB)
+
+There are three types of ELBs:
+1. Network LBs are fast, but are without many features to offset the cost of not looking closely at the incoming traffic.
+2. Gateway LBs are for switching traffic coming in to virtual networking appliances, made from the vendors which are not AWS (e.g. Cisco Virtual Firewalls).
+3. Application LBs are great for web traffic, bc they will consider traffic and route it based on set of rules.
+- This is what we will use, as we're using web servers.
+
+## Learn how to create an Application Load Balancer (ALB)
+
+Note:
+1. Which two availability zones the instances are running in.
+2. Which security group are instances using.
+
+- In left-hand submenu, find 'Load Balancers', select 'Create Load Balancer', and under ALB, press 'Create'.
+- Give a name (`testalb`), under 'Network Mapping: VPC' select the default VPC, under 'Network Mapping: Mappings' select two AZs the EC2 instances are in.
+  - If you had public and private subnets, you would select the public subnet under the AZ.
+- LBs use SGs just like EC2s do. 
+  - under SGs, create new SG. 
+  - Give name: `alb-sg`. Give desc: `http for webservers`. 
+  - Add inbound rule, HTTP: Source: Anywhere IPv4.
+  - Add outbound rule, HTTP: Specify target server, set Dest: Custom, and search for SGs, select SG bound to each running EC2 instance.
+    - Don't spec IP ranges, but SGs. Any instance bound with SG, will be able to receive traffic from the ALB.
+  - Remove 'all traffic' option if there.
+  - Create SG.
+- Refresh ALB with button, and select the new SG created in steps above.
+- LBs route traffic to target groups, which include the target servers.
+  - Forward to: *Select target group* or *Create target group* to open settings in new tab.
+- Create target group:
+  - Select instances for target type, give name `webservers`, port will be forwarding 80, HTTP1 traffic.
+  - Select default VPC
+  - Health checks will be run to determine if the server is healthy before sending traffic to it.
+  - Click Next, the target servers will now register to target group we just created, by checking the boxes and click 'Include as pending' button.
+  - Create target group.
+- Refresh ALB with button, and select the new TG created in steps above.
+- Click Create LB and view.
+
+In details panel of new LB, click on Listeners tab, under Rules, click on `webservers` TG, click on `webservers` TG again, notice two servers under targets tab.
+- Health status will eventually turn healthy.
+
+Back in 'Load Balancers', under description, copy 'DNS name' assigned to load balancer, and paste into browser.
+- Now LB is shuffling traffic on port 80 to both healthy servers.
+
+
 # IaaS Storage
 # Database as a Service (DBaaS)
 # Platform as a Service (PaaS)
