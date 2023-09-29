@@ -28,7 +28,18 @@
   - [Point a domain to your EC2s with Route53](#point-a-domain-to-your-ec2s-with-route53)
 - [IaaS Storage](#iaas-storage)
   - [Hard drives with Elastic Block Store (EBS)](#hard-drives-with-elastic-block-store-ebs)
+  - [NAS with Elastic File System (EFS)](#nas-with-elastic-file-system-efs)
+  - [Web storage with Simple Storage Service (S3)](#web-storage-with-simple-storage-service-s3)
+  - [Upload a file to S3 from the AWS CLI](#upload-a-file-to-s3-from-the-aws-cli)
+  - [Use the SDK to create a file within S3](#use-the-sdk-to-create-a-file-within-s3)
+  - [IAM roles for EC2](#iam-roles-for-ec2)
+  - [Putting together all of the IAM resources](#putting-together-all-of-the-iam-resources)
+  - [Storing passwords with Secrets Manager](#storing-passwords-with-secrets-manager)
+  - [Long-term storage with S3 Glacier](#long-term-storage-with-s3-glacier)
+  - [Serve content faster with CloudFront](#serve-content-faster-with-cloudfront)
+  - [Qs:](#qs)
 - [Database as a Service (DBaaS)](#database-as-a-service-dbaas)
+  - [What is database as a service (DBaaS)?](#what-is-database-as-a-service-dbaas)
 - [Platform as a Service (PaaS)](#platform-as-a-service-paas)
 - [Software as a Service (SaaS)](#software-as-a-service-saas)
 - [DevOps with AWS](#devops-with-aws)
@@ -326,10 +337,184 @@ If you have a domain:
 # IaaS Storage
 
 ## Hard drives with Elastic Block Store (EBS)
+Primary storage for EC2 is Elastic Black Store (EBS). When an AIM is made, it creates an EBS snapshot of the servers main drive.
 
+The AIM includes everything needed to relaunch the instance, the EBS volume is just a snapshot of the HD.
+For backups of the server, take an AIM image periodically, as it can be relaunched to start the server at a point in time, e.g. this would be good for a DB server.
 
+'Volumes' are the HDs attached to the instance, they can be created an attached (and detached) to your instances via the 'Volumes' console.
+Volumes are complete blank once attached, they need to be formatted. Docs are available to do this via the info icon at the top right.
+Volumes can be modified to increase or decrease the size; new space needs to be formatted.
+
+EBS volumes are fast, so are the default for EC2 instances, but alternatives are available for shared drives between instances.
+
+## NAS with Elastic File System (EFS)
+One limitation of EBS, is that it's attached to an EC2 volume, therefore it can't be written to from two instances.
+
+A NAS (network attached storage) creates a file share on the network.
+Amazon's version of a NAS is the Elastic File System (EFS), so the same drive can be mounted on several EC2 instances to share common data between applications.
+
+EFS isn't as fast as EBS, as EBS sits closer to the raw HW of the instance. 
+Therefore the EBS must contain:
+- the operating system for instance
+- the application source code.
+The EFS can contain:
+- anything that the instances need to share.
+- like user uploaded data.
+
+HOW TO:
+- In AWS console, find EFS in search bar, and select 'Create file system'.
+- Give a name, and click 'Create'
+- Select volume created, and click 'Attach', follow wizard to attach drive the instance.
+
+TIP:
+Use FSX when running Windows server instances, this will allow a mounted drive between both instances, like a commercial NAS.
+
+## Web storage with Simple Storage Service (S3)
+S3 buckets allow you to store anything and share with users without config servers and file shares.
+S3 slower, but unlike EFS, you don't need a server to host files.
+
+HOW TO:
+- In AWS console, find S3 in search bar, and select 'Create bucket'.
+- Give name + random numbers, select region that other resources are in, and click 'Create bucket'.
+- Select bucket in the console and create folders.
+- Select folder, and upload stuff into it.
+- Select the uploaded file, and see the Object URL link.
+  - If you try and access it will error, bc the buckets are private by default.
+
+## Upload a file to S3 from the AWS CLI
+You can use CLI to up/download files to/from S3 bucket.
+HOW TO:
+- Install CLI to system
+- `aws configure`, will ask for credentials, set region as that where the bucket is, otherwise leave defaults
+- Test with `aws s3api list-buckets` or `aws s3 ls`, should list accessible buckets in CMD or JSON.
+- `s3` gives higher level, `s3api` commands are closer to the api calls in source code.
+- Copy stuff in with `aws s3 cp <somefile> s3://<bucketname>/<foldername>/`
+- See that the file is updated in console view.
+
+Has sync command to auto backup S3.
+
+## Use the SDK to create a file within S3
+Software development kit
+**<!> don't do this bc it posts keys into source code <!>**
+HOW TO:
+- Note bucket name
+- In console, search EC2, find an instance, and log into instance as Ubuntu user from the console.
+- See exercise files `05_05` for commands to install php (`phps3commands.txt`).
+- Make sure region, credentials, and buckets are changed **<!> here <!>**
+- Copy code from ?php and copy into nano, save `ctrl + o`, `enter`.
+- `ctrl + x` to exit nano.
+- Run `php s3test.php`.
+- Return to the browser, and search for S3.
+- Click on bucket name to browse bucket from route, you'll see a file there.
+- Open it, and you'll see it matches what we inserted.
+
+Python and Node SDKs available.
+
+## IAM roles for EC2
+
+IAM Roles allow us to create permissions for EC2 instances.
+- e.g. create a role to read/write to S3 buckets, and apply to EC2 instances.
+
+The role is like a property of an instance, therefore there is no keys or access rights to be stolen.
+
+HOW TO:
+- Find IAM console.
+- Select 'Roles', select 'Create role'.
+- Select 'AWS service' as trusted entity, select 'EC2' as the use case, 'Next'.
+- Add permissions, find S3, and check the record named `AmazonS3FullAccess`, 'Next'.
+- Give name, e.g. `s3grantforec2`, 'Create role'.
+- Switch back to EC2 console, check instances, and find an instance.
+- In Actions, under 'Security', select 'Modify IAM Role'.
+- Select `s3grantforec2` from drop down, and update.
+- Get back on a session to the EC2 instance, and update `php s3test.php` to remove credentials.
+- Run the file `php s3test.php`, to confirm it still works.
+The EC2 instance is using the role now to auth against S3.
+
+Can also create custom policy that would apply to a single bucket, etc.
+- Out of scope here.
+
+## Putting together all of the IAM resources
+AIM is always controlled by AWS global region, settings/services which aren't tied to a region.
+The root account sits off to the side, not an AIM resource, but we can create groups, users, and roles as IAM identities/entities.
+![Alt text](images/aws region breakdown.png)
+
+## Storing passwords with Secrets Manager
+Can create AIM role for EC2 instances to access S3 removing access key from code.
+However, will need to use non-AWS 3rd party services which will need auth.
+Look at Secrets Manager to store key/passwords securely, then call aws api to retrieve the auth in code.
+
+## Long-term storage with S3 Glacier
+Old data which wan't to keep, create lifecycle policy to automatically move old files from S3 bucket to cheaper storage class (Glacier).
+- Good for server back-ups or log files required for auditing.
+
+Only put data that's infrequently used, as there is a delay to access.
+
+HOW TO:
+- Find S3, select bucket, select folder, and a file.
+- Under storage class, edit, and change to Glacier (there is others, e.g. One Zone-IA is the cheapest bc it isn't replicated against all availability zones).
+- Management tab from bucket name, create lifecycle policy.
+- Properties tab shows versioning, and static website hostin (like basic github pages).
+
+AWS Snow moves lots of data via a hard drive array that's plugged in on your end, shipped to them, and uploaded to AWS.
+
+## Serve content faster with CloudFront
+Can push contents of S3 bucket to edge servers worldwide.
+CloudFront is a Content Delivery Network (CDN) that mirrors a S3 bucket.
+
+HOW TO:
+- In S3, bucket settings, find Permissions.
+- Allows control Public access to bucket, but do observe the warnings.
+  - See more on policies
+- Edit block public access, and uncheck the box, save.
+- Under Object Ownership, edit, and ACLs enabled, save.
+- Under Objects, find test folder, and find a file.
+- Change Permissions by editing, and allow read checkbox for everyone, save.
+- Click object url, and will be available publicly.
+
+HOW TO:
+- Find CloudFront
+- Create a CloudFront Dist
+- Find origin domain that has S3 bucket created.
+- Bottom of page, create.
+- When Dist complete, copy Distribution domain name, and paste in browser (adding `folder/file path`) to see the file.
+AWS Global Accelerator to speed up data transfer, can be turned on from S3 console.
+
+## Qs:
+1. What is the most cost effective way to move petabytes of backups that you need to keep for long-term retention into AWS?
+  - Snowball
+2. What is a valid use case for a public S3 bucket?
+  - Serving web content with CloudFront
+3. How can you restrict access to your bucket?
+  - Create a custom bucket policy.
+4. Which S3 storage class is best for storing the only copy of your latest backups for your databases?
+  - S3 Standard
+5. What is the difference between an IAM Identity and an IAM Entity?
+  - Entities are the users and roles requesting access, whereas identities include anything you can attach a policy to which includes groups.
+6. Should you put secret access keys into secrets manager?
+  - No, use an IAM role instead.
+7. What is the best use case for using the AWS SDK?
+  - Accessing AWS resources from within your application source code
+8. Why is using a IAM role better security than using access keys?
+  - IAM roles grant permissions without leaving a key on the server that can be compromised.
+9.  What CLI command will list all of the S3 buckets you have access to?
+  - aws s3 ls
+10. What is a limitation of EFS?
+  - EFS is only supported for Linux instances
+11. Order the speeds of the AWS storage services by fastest (first in the list) to slowest (last in the list)
+  - EBS, EFS, S3
+12. What is the difference between a Amazon Machine Image (AMI) and an EBS snapshot?
+  - AMI's include everything needed to relaunch the instance, whereas an EBS snapshot is only a backup of the data volume.
+13. Your users upload large video files through your app into an S3 bucket. How can you increase the upload speed?
+  - Transfer Accelerator
+14. You have your EC2s created within a single region, but now you would like global reach. Without cloning your application into multiple regions, what is way you can provide faster access to your resources?
+  - Global Accelerator
 
 # Database as a Service (DBaaS)
+
+## What is database as a service (DBaaS)?
+
+
 # Platform as a Service (PaaS)
 # Software as a Service (SaaS)
 # DevOps with AWS

@@ -1,0 +1,5 @@
+aws configure
+aws s3api list-buckets
+aws s3 ls
+cd Downloads
+aws s3 cp linkedinlogo_cli.png s3://{{YOURBUCKETNAME}}/testfolder/
