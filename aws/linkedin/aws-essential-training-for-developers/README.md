@@ -47,13 +47,42 @@
   - [Buffer data with a message queue](#buffer-data-with-a-message-queue)
   - [Qs](#qs-1)
 - [Platform as a Service (PaaS)](#platform-as-a-service-paas)
+  - [Hosting web apps with Elastic Beanstalk](#hosting-web-apps-with-elastic-beanstalk)
+  - [Running containers on AWS](#running-containers-on-aws)
+  - [Using K8s with AWS](#using-k8s-with-aws)
+  - [Serverless functions with Lambda (FaaS)](#serverless-functions-with-lambda-faas)
+  - [Managing long-running jobs](#managing-long-running-jobs)
+  - [Qs](#qs-2)
 - [Software as a Service (SaaS)](#software-as-a-service-saas)
+  - [User authentication for your app](#user-authentication-for-your-app)
+  - [Designing backend API](#designing-backend-api)
+  - [Helpful machine learning services](#helpful-machine-learning-services)
+  - [Qs](#qs-3)
 - [DevOps with AWS](#devops-with-aws)
+  - [What is DevOps?](#what-is-devops)
+  - [Developer tools within AWS](#developer-tools-within-aws)
+  - [Infrastructure as Code with AWS](#infrastructure-as-code-with-aws)
+  - [Monitoring with CloudWatch](#monitoring-with-cloudwatch)
+  - [DevOps using machine learning](#devops-using-machine-learning)
+  - [Qs](#qs-4)
 - [Security on AWS](#security-on-aws)
+  - [AWS Shield and firewalls with WAF](#aws-shield-and-firewalls-with-waf)
+  - [Spot issues with Inspector, GuardDuty, and Macie](#spot-issues-with-inspector-guardduty-and-macie)
+  - [Manage EC2 with Systems Manager](#manage-ec2-with-systems-manager)
+  - [Traceability with CloudTrail and Security Hub](#traceability-with-cloudtrail-and-security-hub)
+  - [Investigate threats with AWS Detective](#investigate-threats-with-aws-detective)
+  - [Qs](#qs-5)
+- [Extra](#extra)
+  - [AWS Well-Architected Framework](#aws-well-architected-framework)
+    - [Pillars and design principles](#pillars-and-design-principles)
+  - [Getting help from AWS Support](#getting-help-from-aws-support)
+  - [Qs](#qs-6)
 
 # AWS Essential Setup
 - Set MFA on root account, via Security Credentials.
 - Create an IAM user, under a group with given permissions.
+- Create an IAM user access key:
+
 # On-Premise to AWS
 # IaaS Compute
 **EC2 (Elastic Compute Cloud)**
@@ -624,6 +653,380 @@ Not how should we choose between these three, more, **when** should we use Kines
     - DynamoDB
 
 # Platform as a Service (PaaS)
+
+## Hosting web apps with Elastic Beanstalk
+Good when have single code base for project, and just want AWS code and let them manage servers and OS updates.
+It's still EC2 servers, but good for devs who can't/won't manage servers. AWS have tutorials on creating HA WordPress site.
+
+Lightsail similar to WordPress hosts, like GoDaddy, etc.
+If you outgrow Lightsail, will transition out into EC2.
+
+## Running containers on AWS
+Containers take large monolithic single applications, and break features down into mircoservices, that are easier to:
+- Scale, monitor, and maintain.
+- e.g. app sign-ups, payments, reports.
+
+Not like EC2 instances, more like it's own computer, with application software, with deps and libraries pre-installed and configured.
+
+Serveral platforms, but most popular Eastic Container Service (ECS).
+Container Orch tool, first create a cluster, then create nodes (e.g. EC2s) that will run containers.
+Can load balance containers accross nodes in different AZs, providing scaling and redundancy is EC2s fail.
+
+![Alt text](images/ecs.png)
+
+Elastic Container Registry (ECR)
+- Place in AWS to keep container images, blueprints needed to spawn copies on containers
+
+Setting up ECS type definitions:
+
+Launch types:
+- Fargate - on demand nodes willing to run any number of containers (containers with one task that stops exe when finished).
+  - containers don't always need to be running and can offset spin-up time.
+- EC2 - containers always running and processing requests and available to respond immediately (e.g. whole webserver backend, node.js).
+- External - allows containers to run on-prem in hybrid cloud env.
+
+## Using K8s with AWS
+K8s most popular container orch SW, open source google borg, AWS has Elastic K8 Service (EKS)
+
+| ECS | EKS |
+| -------- | ------- |
+| Simple | Harder, but K8s run anywhere, so not lock in |
+| Less popular | More popular, support, and integration     |
+| Basic networking | Advanced control of networking layer   |
+
+TIP:
+- Start small and scale up
+- ECS and Fargate to get started quickly
+- Migrate workloads that are always-on to ECS instances
+- Scale up to K8s with EKS
+- When on-prem, host your own on-prem instead of paying EC2, with EKS
+
+## Serverless functions with Lambda (FaaS)
+A small chunk of code that runs on your cloud platform every time an event occurs (e.g. a incoming web request).
+Think "easier containers", give us the code, and we'll figure out the rest.
+
+To build an entire app this way is called **Serverless Architecture**.
+- An application that responds to incoming events without the need for always-on servers that you manage.
+- Taking source code and building and running a container for you, on a EC2, on a physical server in a AZ.
+
+HOW TO:
+- Search Lambda
+- Can test in browser, keep it small and simple.
+- Break apps into functions and orch them.
+- Can build/expand an entire web app using lambda.
+
+## Managing long-running jobs
+Batch processing and work flows, AWS has 'Batch'.
+
+Manage and schedue jobs that use EC2 Spot Instances, amazons unused capacity, via a bidding system.
+
+Multi-step workflow, look at 'Step Functions', easier to read than cron jobs.
+
+## Qs
+1. Which AWS service can host the web application server for a Wordpress site?
+    - Elastic Beanstalk
+2. In the shared responsibility model, who would apply the Wordpress updates to your site running in Elastic Beanstalk?
+    - You apply the Wordpress updates.
+3. What is usually the best service for implementing a multi-step workflow within AWS?
+    - Step Functions
+4. What is the difference between ECS and EKS?
+    - EKS runs your containers using Kubernetes and gives you more control over the networking.
+5. Which service can host a Docker container?
+    - All of these services can be used as a Docker host (Elastic Beanstalk, EC2, ECS).
+6. Lambda does not implement which cloud design principle?
+    - Infrastructure as code
+
 # Software as a Service (SaaS)
+## User authentication for your app
+SW and app integrations that run in the cloud that you don't have to write or maintain (e.g. Google Docs)
+
+Services that can be baked into the application, and "just work". Most of the responsibility in on AWS and not you.
+You use the service, and they bill you for usage, e.g. logins.
+
+Services to help manage user auth, Cognito, sign-in integrations with other users (Facebook and Google, etc.)
+
+HOW TO:
+- Find Cognito
+- Select 'Create user pool'
+- Choose between managing logins on Cognito (making new accounts), or also enable other identity providers.
+- Select sign-in options
+- Define sign-in rules
+- Define account recovery
+- Configure sign-up experience and message delivery
+- Under SMS select 'Create a new IAM role', and give name '<x>role'
+- Give the user pool a name + random numbers
+- Sign-in pages can be hosted on AWS.
+- When created, select the user pool, and see App integration. 
+
+**Amazon has Simple Email Service (SES)
+**
+
+## Designing backend API
+If designing a microservices arch for backend of web or mobile app, you are likely building out an API to allow frondend to interface with backend code.
+Take a look at API gateway to publish REST API endpoints for each microservices, and point them at other AWS stuff.
+
+![Alt text](images/apigateway.png)
+
+If GraphQL API, look at AppSync to wire together multiple AWS services. Logging and auth made easier. Brokers traffic to other AWS services.
+
+Errors and slow downs are show via AWS X-ray, scanning cloud infrastructure, e.g. slow endpoint.
+
+## Helpful machine learning services
+AWS has tools that can be build into apps to do all sorts:
+- Image classification
+- Text reading
+- Voice inputs
+- Translation
+
+Use SageMaker to build and train ML models without managing servers.
+
+Otherwise, easy to use APIs that can be baked into apps 
+- Comprehend: sentiment Analysis.
+- Lex: build chatbot
+- Personalize: promote recommended products based on shopping habits.
+- Polly: narrates text
+- Rekognition: extract face, or documents
+- Textract
+- Translate
+- Transcribe: transcribe natural speech to text.
+
+## Qs
+1. What service can manage a REST API layer?
+    - API Gateway
+2. Your new mobile application uses GraphQL to interface with it's backend servers for storing data. What service can help you manage a GraphQL endpoint?
+    - AppSync
+3. What service can handle user authentication for your web and mobile applications?
+    - Cognito
+4. What is NOT a benefit of Software as a Service (SaaS)?
+    - The software is always free.
+5. Your application sometimes runs slowly and is built using microservices with API Gateway and ECS with EC2 instances and an RDS database. What service can trace requests through the app and help you find the problem?
+    - X-Ray
+6. What service will identify the things it finds in an image?
+    - Rekognition
+
 # DevOps with AWS
+## What is DevOps?
+Removes barrier between teams, development and operations.
+- The developers help maintain servers
+- IT people work more on the code
+They have shared goals, releasing new features and ensuring site reliability.
+
+Look at infrastructure as we look at code, throw-away objects derrived by defined classes.
+
+## Developer tools within AWS
+Every new change, check in changes, rebuild app, package it back up, and deploy to platform.
+- Now, everytime code is checked in, everything is automatically tested and deployed to a staging environment, then if ok, deployed into production.
+
+Agile: release early and often.
+- Find bugs faster
+
+Dev ops practices:
+**1 .Continuous Intergration (CI)**
+Smaller changes to the code are automatically tested whenever a change is made by any developer.
+
+CodePipeline:
+- Used to create a workflow that automatically pulls code
+- Builds the project
+- Runs automated test using AWS CodeBuild.
+
+At end of pipeline..
+**2. Continuous Deployment (CD)**
+Tested changes are automatically deployed to a staging environment and can then be automatically sent into produciton.
+- Quickly introduce changes into production system.
+- AWS CodeDeploy.
+
+## Infrastructure as Code with AWS
+Everything in the cloud is virtual.
+Deployment automation tools can check all servers against the source of truth, and set config back to original states.
+See AWS OpsWorks
+Infrastructure management tools:
+- Puppet
+- Chef
+- Ansible
+- AWS CloudFormation: allows script of EC2, VPC, LBs, etc.
+  - Start early on, and build up over time.
+
+HOW TO TEMPLATE:
+- Find CloudFormation
+- Create stack
+- Create new resources, or a script that describe existing.
+- View in Designer to see the template.
+- Will even install server packages for us.
+
+Terraform:
+- Allows AWS or other cloud as providers
+- Large community
+- Will ask for access key, so will use API to create and manage resources for you.
+- Can move between cloud providers
+
+## Monitoring with CloudWatch
+CI/CD expands the role of monitoring the service, how is the site performing.
+See AWS Health, to check for outages or performance issues with AWS services.
+
+HOW TO:
+- Find CloudWatch.
+- Metics, all metrics.
+- EC2 card, Per-instance metrics.
+
+See Logs and Alarms
+It doesn't offer APM, application performance monitoring.
+Third party AWS parteners:
+- Newrelic
+- Dynatrace
+- Datadog
+Hook into AWS account and source code.
+
+## DevOps using machine learning
+AWS DevOps Guru uses ML to look at operational data accross AWS resources, and notify is things are out of place.
+
+![Alt text](images/guru.png)
+
+CodeGuru will look at repo, and do an automated code review on source code, posting comments.
+
+## Qs
+1. What machine learning service can inspect your source code for vulnerabilities?
+    - CodeGuru
+2. What is something that is difficult to monitor with CloudWatch?
+    - Internal application performance and response times
+3. Which service leverages machine learning to spot anomalies in how your services are performing?
+    - DevOpsGuru
+4. Which AWS tool is best at defining AWS services as code?
+    - CloudFormation
+5. What is NOT a design principle for DevOps teams?
+    - Tightly coupled components
+6. What's the difference between continuous integration (CI) and continuous deployment (CD)?
+    - CI automatically builds your code and runs tests against it, while CD will automatically deploy working code.
+
 # Security on AWS
+## AWS Shield and firewalls with WAF
+Lots of security features, and guides on best practices for security.
+Two services that help with filtering and blocking traffic.
+
+Web Application Firewall (WAF):
+- Connect to load balancer, and used as any other firewall product.
+- Has managed rules that you can subscribe to, which are being updated to prevent against the latest threats. 
+Sheild
+- Help mitigate a DOS attack (our responsibility).
+
+## Spot issues with Inspector, GuardDuty, and Macie
+Run these services on a regular schedule
+GuardDuty:
+- Finds suspicious network connections server is making to indicate if it's been compromised
+- May be overwhelming
+Inspector:
+- Full scan of cloud infra, looks for unpatched servers and common security vulnerabilites.
+- Start here if you inherit someone elses account.
+Macie:
+- Scan cloud resources and look for sensitive data and report back if it's being shared publicly.
+
+## Manage EC2 with Systems Manager
+Connect to all EC2s to run commands applicable to all EC2s.
+Node Management: reports issues.
+Session Manager: secure way to access EC2 instances.
+Run Command: another way instead of terraform.
+OpsCenter: central console to tie alerts together.
+
+## Traceability with CloudTrail and Security Hub
+- Audit trail of changes made to AWS account.
+- Can log requests made through the API
+
+Security Hub:
+- Single readout of things to look into from various security products.
+
+## Investigate threats with AWS Detective
+- Log and scan all VPC logs and cloud trail data to bring up users and resouces that look sus.
+
+## Qs
+1. What service will give you a variety of tools for managing security patches and tracing incidents for your fleet of EC2 instances?
+    - Systems Manager
+2. Web Application Firewall (WAF) deploys on top of what other AWS service?
+    - Application Load Balancer (ALB)
+3. What is the difference between AWS Detective and AWS Inspector?
+    - Detective lets you investigate into the root causes of a security event, Inspector will scan your servers for vulnerabilities.
+4. To comply with some of the auditing requirements of some compliance standards, what AWS tool can be enabled to maintain an audit log of access and changes to your AWS infrastructure?
+    - CloudTrail
+5. An ECS service that handles your payments microservice was updated to use an incorrect task definition and is now pointing at the wrong container image. How can you determine who made this change?
+    - CloudTrail
+6. What is one difference between GuardDuty and Inspector?
+    - GuardDuty can actively scan your entire AWS account for suspicious traffic to detect a breach, whereas the Inspector agent can periodically scan your EC2 instances to check for vulnerabilities to prevent a breach.
+7. You recently backed up some data files to S3 from a third-party software vendor that your customer service team uses. What tool can you use to make sure these backups aren't storing sensitive user data?
+    - Macie
+8. An EC2 instance running a Wordpress site keeps getting hacked, even though you have patched Wordpress and scanned and fixed any known vulnerabilities. What AWS service can help you detect the next time the starts sending suspicious internet traffic?
+    - GuardDuty
+9. What service can scan your EC2 instances for known vulnerabilities?
+    - Inspector
+
+# Extra
+## AWS Well-Architected Framework
+Tool within AWS that will analyse current arch, and let you know if you can fix something to align with these principles.
+
+### Pillars and design principles
+1. Operational Execellence
+   - Infra as code; CloudFormation
+   - Many, small changes
+   - Design for failure; putting EC2 instances in different AZ
+   - Learn from failure
+   - Quickly make changes to operational procedures
+2. Reliability
+   - Automatically recover from failure to keep uptime and HA
+   - Test recovery in safe env
+   - Stop guessing capacity and usage, track the metrics and right-size the resources
+   - Scale horizontally; using EC2 auto scalling and LBs
+   - Implement elasticity
+   - Automate change and tracking
+3. Security
+   - Use ID management policies, and audit who has access
+   - Use traceability, like CloudTrail, to know what they're doing
+   - Apply security everywhere, at every layer
+   - Automate security audits so they happen
+   - Secure data at rest or in transit
+   - Limit exposure of sensitive data, even internally
+   - Practise for security breaches
+4. Performance Efficiency
+   - Have mechanical sympathy: how are the tools having to work under the hood, what's happening to an EBS volume?
+   - Tweak settings for max performace
+   - Use managed services bc no-ones an expert, focus on building the product
+   - Use serverless arch, like Lamdba
+   - Decouple components instead of monoliths (and design for failure!)
+   - Think parallel
+   - Run experiments, be agile
+   - Go global in minutes, start small, but think ahead
+5. Cost Optimization
+   - Save on IT capital and use AWS econ of scale, hire a team that focuses on business value
+   - Have a budget, practise good financial management
+   - Pay-as-you-go consumption
+   - Measure usage for right sizing, if you're needs are fixed or elastic?
+   - Tag expenditures across teams, dept, project
+6. Sustainability
+   - Maximise application efficiency, reducing elec and waste
+   - Use managed services, reduce waste in application, elastic, right-sizing
+   - Know your environmental impact
+
+## Getting help from AWS Support
+AWS own resources and teams.
+- Read the docs
+- AWS have own training resources and academy
+- Join partner network to connect to consultants and partners
+- Attend events
+
+Can add support plan with Root user, search Support in AWS.
+
+## Qs
+1. Which support plan assigns you a Technical Account Manager?
+    - Enterprise Support Plan
+2. What is the best support plan for an application that just recently launched and uptime is important, but not critical?
+    - Business Support Plan
+3. Which AWS resource gives you access to third-party professionals who can assist you in building your application?
+    - Amazon Partner Network
+4. You recently moved your application into the cloud and enabled EC2 Auto Scaling to add and remove additional servers to the cluster based upon demand. Which principle is this?
+    - Implement elasticity in the cloud versus on-premise.
+5. You load balanced your application across two availability zones. Which design principle is this?
+    - Design for failure
+6. If you use SQS in your account creation microservice to signal a worker to process a background check on a new account, which key design principle are you using?
+    - Decouple components instead of monoliths.
+7. You used Terraform to track and deploy changes to your cloud infrastructure. This falls under which pillar of the Well-Architected Framework?
+    - Operational Excellence
+8. What is not a value proposition of the cloud?
+    - Serverless
+
+
