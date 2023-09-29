@@ -40,6 +40,12 @@
   - [Qs:](#qs)
 - [Database as a Service (DBaaS)](#database-as-a-service-dbaas)
   - [What is database as a service (DBaaS)?](#what-is-database-as-a-service-dbaas)
+  - [Relational Database Service (RDS)](#relational-database-service-rds)
+  - [NoSQL databases](#nosql-databases)
+  - [In-memory cashes](#in-memory-cashes)
+  - [Big data databased](#big-data-databased)
+  - [Buffer data with a message queue](#buffer-data-with-a-message-queue)
+  - [Qs](#qs-1)
 - [Platform as a Service (PaaS)](#platform-as-a-service-paas)
 - [Software as a Service (SaaS)](#software-as-a-service-saas)
 - [DevOps with AWS](#devops-with-aws)
@@ -133,7 +139,7 @@ The instances we've spun up so far are *on demand* instances.
 If you can tell AWS upfront want your requirements will be, they'll discount usage.
 - This is done via buying a coupon for a 'Reserved Instance' on the left-hand menu.
   - There is a market place to buying partially reserved instances.
-- For recommendations based on usage, searcg 'AWS Cost Management' and 'Recommendations' under 'Reservations'.
+- For recommendations based on usage, search 'AWS Cost Management' and 'Recommendations' under 'Reservations'.
 - For flexibility, use 'EC2 Savings Plan' instead.
   - Will allow for changes in server size (but not family) over the course of the contract.
 - 'Compute Savings Plan' allows for changes to family also.
@@ -158,7 +164,7 @@ Not a good idea to publicly expose SSH port to open internet over `0.0.0.0/0:80`
 ## Virtual Private Cloud (VPC)
 Indicated on diagrams with a green box around the VCP.
 Every VCP will have a range of non-routable (private IPs) that you can pick from to use in the private network.
-When linking computers with a switch, a LAN will work with ranges of non-routeable IPs, which can be used by any local network, e.g. 192.168.1.1/255 address ranges used by most home routers.
+When linking computers with a switch, a LAN will work with ranges of non-routable IPs, which can be used by any local network, e.g. 192.168.1.1/255 address ranges used by most home routers.
 
 Search VPC in services search bar at the top of the page.
 On left-hand side, select 'Your VPCs'.
@@ -482,38 +488,140 @@ AWS Global Accelerator to speed up data transfer, can be turned on from S3 conso
 
 ## Qs:
 1. What is the most cost effective way to move petabytes of backups that you need to keep for long-term retention into AWS?
-  - Snowball
+    - Snowball
 2. What is a valid use case for a public S3 bucket?
-  - Serving web content with CloudFront
+    - Serving web content with CloudFront
 3. How can you restrict access to your bucket?
-  - Create a custom bucket policy.
+    - Create a custom bucket policy.
 4. Which S3 storage class is best for storing the only copy of your latest backups for your databases?
-  - S3 Standard
+    - S3 Standard
 5. What is the difference between an IAM Identity and an IAM Entity?
-  - Entities are the users and roles requesting access, whereas identities include anything you can attach a policy to which includes groups.
+    - Entities are the users and roles requesting access, whereas identities include anything you can attach a policy to which includes groups.
 6. Should you put secret access keys into secrets manager?
-  - No, use an IAM role instead.
+    - No, use an IAM role instead.
 7. What is the best use case for using the AWS SDK?
-  - Accessing AWS resources from within your application source code
+    - Accessing AWS resources from within your application source code
 8. Why is using a IAM role better security than using access keys?
-  - IAM roles grant permissions without leaving a key on the server that can be compromised.
+    - IAM roles grant permissions without leaving a key on the server that can be compromised.
 9.  What CLI command will list all of the S3 buckets you have access to?
-  - aws s3 ls
+    - aws s3 ls
 10. What is a limitation of EFS?
-  - EFS is only supported for Linux instances
+    - EFS is only supported for Linux instances
 11. Order the speeds of the AWS storage services by fastest (first in the list) to slowest (last in the list)
-  - EBS, EFS, S3
+    - EBS, EFS, S3
 12. What is the difference between a Amazon Machine Image (AMI) and an EBS snapshot?
-  - AMI's include everything needed to relaunch the instance, whereas an EBS snapshot is only a backup of the data volume.
+    - AMI's include everything needed to relaunch the instance, whereas an EBS snapshot is only a backup of the data volume.
 13. Your users upload large video files through your app into an S3 bucket. How can you increase the upload speed?
-  - Transfer Accelerator
+    - Transfer Accelerator
 14. You have your EC2s created within a single region, but now you would like global reach. Without cloning your application into multiple regions, what is way you can provide faster access to your resources?
-  - Global Accelerator
+    - Global Accelerator
 
 # Database as a Service (DBaaS)
 
 ## What is database as a service (DBaaS)?
+DBaaS: The cloud provider manages the database servers and backups. You read and write your data to the managed service.
 
+If migrating an existing application to AWS, there is a Database Migration Service from on-prep to cloned synced cloud DB.
+
+If building a new application, ask what are the data needs for the applications?
+- What data will be stored?
+- How much data do we need, how much will be written per hour?
+- Write throughput?
+- What uptime do we need?
+
+Broad categories:
+- Lots of historical data for reporting; Big data solution.
+- Real time access to current month of data; Relational database + Big data (stored later)
+- If relational DB is going to ingest a large stream of data; Queue (to aggregate data over time) + Relational.
+- If storing object based and don't need to generate reports; NoSQL.
+
+Once the above questions are answered:
+- Feature sets, budgets and vendor support
+
+## Relational Database Service (RDS)
+MySQL or MSSQLServer, EC2 instance can be installed with DB directly onto server; replicates on-prem env.
+Resonsible for:
+- Config
+- OS updates
+- DB engine updates
+- Monitoring
+- Failover replication
+
+AWS has managed platform, where everything else is managed above is by them.
+Supports most popular databases, PostgreSQL, MySQL, SQL Server, Oracle.
+
+Similar to launching an EC2, can deploy different sizes, and can size up (but not down).
+- i.e. start small and scale up.
+If high uptime, use Multi-AZ, although doubles the cost (despite connecting to one endpoint in code).
+- Can start in a single AZ, and enable if more uptime is needed.
+
+Back ups won't be resorted onto of an existing cluster, but it will create a new one for safety.
+- Will need to change the connections in code.
+
+Amazon Aurora, is similar to mySQL or postgress from a dev standpoint
+- more server management handled by AWS
+- hands off as possible
+
+## NoSQL databases
+NoSQL: storage and retrieval of data that is not stored in a tabular relational format
+- Think spreadsheets (relational) vs. JSON (NoSQL).
+Great for storing data in a schema-less format.
+
+DynamoDB is the most popular key:value store. DB as a service offering, as no management required.
+- Easier that RDS offering to scale up and down.
+- Global tables let data be replicated accross regions.
+
+DocumentDB is DB plateform that's similar to MongoDB.
+
+## In-memory cashes
+Speeds up data look up for frequently accessed infomation.
+ElastiCashe helps manage and deploy two types of in-memory cache, Redis and Memcached.
+Otherwise, Redis and Memcashed can be installed and deployed to EC2 servers directly.
+This is simplfied in ElastiCashe.
+
+## Big data databased
+Redshift is AWS service for this.
+Terms:
+- data lake: unstructured data, usually stored a raw text data, often large (think webserver logs or sensor data from IoT).
+  - If needs to be mined for trends and info, AWS Athena.
+- data warehouse: structured data (like relational DB) optimised to return results.
+  - AWS Redshift for this; cluster of DB server nodes, collect and store data, maintained by AWS, accessed with SQL.
+  - Redshift Spectrum can load in raw files from datalake to run queries.
+
+## Buffer data with a message queue
+When new data needs to be written, there may be a hold/lock on the table, preventing others from accessing until write is complete.
+This wait time on read can slow down applications.
+Queue temp stores data that's needed to write, so applications aren't waiting on DB and can continue using the app, the data is written later.
+Can also be used as a messaging serverice.
+Kinesis:
+- Handles large stream of realtime data or application logs
+- Connects to other services for realtime reporting
+SQS (Simple Q service):
+SNS (Simple notification service):
+- Push out a message, email text or http call to a webhook.
+
+Not how should we choose between these three, more, **when** should we use Kinesis, SQS, and SNS.
+## Qs
+1. What is the best use case for using the Database Migration Service?
+    - You are migrating an on-premise production database to the cloud and both databases need to stay in-sync.
+2. You are going to host an application that uses a MySQL database, but you do not want to managing scaling or database administration tasks. What is the best choice for hosting this database?
+    - Aurora
+3. Which service can send a push notification to a mobile device?
+    - SNS
+4. What is a valid use case for a queue or message broker that would sit in front of your relational database?
+    - When you need to ingest a large stream of data
+5. If you need to store large streams of user activity data coming from a web and mobile application and generate aggregated reports on usage patterns, which database is the best choice?
+    - Redshift
+6. You have 10,000 Internet of Things devices that are sending in real-time telemetry on vehicle movement at 5 second intervals. What is the best service to capture this data?
+    - Kinesis
+7. What in-memory caching server is NOT supported by ElastiCache?
+    - Elasticsearch
+8. Your application uses an RDS for MySQL database and is slowing down because of too many reads. What can speed up your database?
+    - ElastiCache
+9. In the shared responsibility model, who applies patches to your database engine in RDS?
+    -  AWS will apply the patches automatically during the next maintenance window, but you may have an option to defer it.
+10. Which database is a NoSQL database type that can quickly store and retrieve key value pairs?
+    - DynamoDB
 
 # Platform as a Service (PaaS)
 # Software as a Service (SaaS)
